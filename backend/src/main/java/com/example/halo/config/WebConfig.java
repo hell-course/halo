@@ -10,7 +10,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**") // /api/ 경로 하위의 모든 요청에 대해
-                .allowedOrigins("http://localhost:5173") // http://localhost:5173からのリクエストを許可
+                .allowedOrigins("http://localhost:5173") // http://localhost:5173
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS") // 허용할 HTTP 메소드
                 .allowCredentials(true); // 쿠키 인증 요청 허용
     }
