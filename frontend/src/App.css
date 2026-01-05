@@ -246,6 +246,20 @@ main {
   background-color: var(--bg-body);
 }
 
+.error-message {
+  color: #ef4444; /* Red 500 */
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.success-message {
+  color: #22c55e; /* Green 500 */
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
 /* --- Home Specifics (Refined) --- */
 .hero {
   text-align: center;

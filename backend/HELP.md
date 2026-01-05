@@ -5,11 +5,11 @@
 For further reference, please consider the following sections:
 
 * [Official Gradle documentation](https://docs.gradle.org)
-* [Spring Boot Gradle Plugin Reference Guide](https://docs.spring.io/spring-boot/4.0.1/gradle-plugin)
-* [Create an OCI image](https://docs.spring.io/spring-boot/4.0.1/gradle-plugin/packaging-oci-image.html)
-* [Spring Data JPA](https://docs.spring.io/spring-boot/4.0.1/reference/data/sql.html#data.sql.jpa-and-spring-data)
-* [Validation](https://docs.spring.io/spring-boot/4.0.1/reference/io/validation.html)
-* [Spring Web](https://docs.spring.io/spring-boot/4.0.1/reference/web/servlet.html)
+* [Spring Boot Gradle Plugin Reference Guide](https://docs.spring.io/spring-boot/3.2.1/gradle-plugin)
+* [Create an OCI image](https://docs.spring.io/spring-boot/3.2.1/gradle-plugin/packaging-oci-image.html)
+* [Spring Data JPA](https://docs.spring.io/spring-boot/3.2.1/reference/data/sql.html#data.sql.jpa-and-spring-data)
+* [Validation](https://docs.spring.io/spring-boot/3.2.1/reference/io/validation.html)
+* [Spring Web](https://docs.spring.io/spring-boot/3.2.1/reference/web/servlet.html)
 
 ### Guides
 
