@@ -9,3 +9,12 @@ spring:
     hibernate:
       ddl-auto: update # 엔티티 구조에 맞춰 테이블을 자동으로 생성/수정해줍니다.
     show-sql: true     # 실행되는 SQL을 콘솔에 보여줍니다.
+
+gemini:
+  api:
+    key: "AIzaSyDdKI-L37mnvdiVDElQ-OHiknHgRS7OYoI"
+producthunt:
+  api:
+    key: "NS03bKuNMdl9pR97K9t51kCnouplI7z8DSbvR16EhqY"
+    secret: "c8Qz6Sl4YaFaavno53jcs2AakahLuVJsrLTFwtLTPNg"
+    developer-token: "PHewMoP3zQAwpVOevN9q12FWm_X1bU2M0P-TSgW21QQ"
