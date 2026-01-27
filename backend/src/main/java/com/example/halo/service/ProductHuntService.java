@@ -74,10 +74,12 @@ public class ProductHuntService {
     public Mono<List<ProductHuntPostDto>> searchPosts(String query, int first) {
         logger.info("Starting market research search for query: '{}'", query);
         return getAccessToken().flatMap(token -> {
-            String graphQlQuery = buildGraphQLQuery(first);
+            String graphQlQuery = buildGraphQLQuery(query, first); // Pass query to buildGraphQLQuery
 
             Map<String, Object> body = new HashMap<>();
             body.put("query", graphQlQuery);
+
+            logger.info("Sending GraphQL query to Product Hunt: {}", body); // Log the full query body
 
             return webClient.post()
                     .uri("")
@@ -176,10 +178,14 @@ public class ProductHuntService {
         });
     }
 
-    private String buildGraphQLQuery(int first) { // query parameter removed
+    private String buildGraphQLQuery(String query, int first) { // query parameter is now only for logging/context
+        // Product Hunt API 'posts' field does not accept a direct 'search' argument.
+        // We will fetch posts ordered by VOTES and then perform semantic filtering using GeminiService.
+        // The 'query' parameter is used for semantic filtering *after* fetching.
+
         return String.format("""
             query {
-              posts(first: %d, order: NEWEST) { # order can be RANKING, NEWEST
+              posts(first: %d, order: VOTES) { # order can be RANKING, VOTES, NEWEST. User requested VOTES.
                 edges {
                   node {
                     id
