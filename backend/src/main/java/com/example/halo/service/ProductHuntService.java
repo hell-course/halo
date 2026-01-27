@@ -1,16 +1,18 @@
 package com.example.halo.service;
 
 import com.example.halo.dto.ProductHuntPostDto;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
+
+import reactor.core.publisher.Mono;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Comparator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,25 +22,12 @@ public class ProductHuntService {
 
     private static final Logger logger = LoggerFactory.getLogger(ProductHuntService.class);
 
-    private final WebClient webClient;
-    private final String productHuntApiKey;
-    private final String productHuntApiSecret;
     private final GeminiService geminiService; // Injected GeminiService
 
-    private final String productHuntDeveloperToken; // Injected developer token
-    // Removed accessToken field as developer token is used directly
+    // ProductHuntService no longer directly interacts with Product Hunt API
 
-    public ProductHuntService(@Value("${producthunt.api.key}") String productHuntApiKey,
-                              @Value("${producthunt.api.secret}") String productHuntApiSecret,
-                              @Value("${producthunt.api.developer-token}") String productHuntDeveloperToken, // New
-                              GeminiService geminiService) {
-        this.productHuntApiKey = productHuntApiKey;
-        this.productHuntApiSecret = productHuntApiSecret;
-        this.productHuntDeveloperToken = productHuntDeveloperToken; // Assign developer token
+    public ProductHuntService(GeminiService geminiService) {
         this.geminiService = geminiService;
-        this.webClient = WebClient.builder()
-                .baseUrl("https://api.producthunt.com/v2/api/graphql")
-                .build();
     }
 
     // Helper method to calculate cosine similarity between two embeddings
@@ -64,152 +53,70 @@ public class ProductHuntService {
         return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
     }
 
-    // Method to get or refresh the access token using developer token
-    private Mono<String> getAccessToken() {
-        logger.info("Using Product Hunt Developer Token for authentication.");
-        return Mono.just(productHuntDeveloperToken);
-    }
+
 
 
     public Mono<List<ProductHuntPostDto>> searchPosts(String query, int first) {
-        logger.info("Starting market research search for query: '{}'", query);
-        return getAccessToken().flatMap(token -> {
-            String graphQlQuery = buildGraphQLQuery(query, first); // Pass query to buildGraphQLQuery
+        logger.info("Starting market research search for query: '{}' using Gemini generation.", query);
 
-            Map<String, Object> body = new HashMap<>();
-            body.put("query", graphQlQuery);
+        if (query == null || query.trim().isEmpty()) {
+            logger.warn("Query is empty. Returning empty list.");
+            return Mono.just(Collections.emptyList());
+        }
 
-            logger.info("Sending GraphQL query to Product Hunt: {}", body); // Log the full query body
+        // Construct the prompt for Gemini
+        String prompt = String.format(
+            "사용자가 '%s' 아이디어를 냈어. 이와 유사한 실제 존재하는 서비스나 앱 5개를 찾아서 알려줘. 각 서비스의 이름, 간단한 설명(tagline), 그리고 가상의 투표수(votesCount)를 JSON 형식으로 줘. 응답은 반드시 JSON 배열만 포함해야 해. Respond with raw JSON array only, no markdown.",
+            query
+        );
+        logger.info("Sending prompt to Gemini for generation: {}", prompt);
 
-            return webClient.post()
-                    .uri("")
-                    .header("Authorization", "Bearer " + token)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .map(response -> {
-                        // Check for GraphQL errors
-                        if (response.containsKey("errors")) {
-                            logger.error("GraphQL response contains errors: {}", response.get("errors"));
-                            return Collections.<ProductHuntPostDto>emptyList(); // Return empty list on error
-                        }
+        try {
+            String generatedJson = geminiService.generateContent(prompt);
+            logger.info("Received raw generated JSON from Gemini: {}", generatedJson);
 
-                        Map<String, Object> data = (Map<String, Object>) response.get("data");
-                        List<ProductHuntPostDto> productHuntPosts = Collections.emptyList();
+            // Clean the generated JSON by removing markdown code block delimiters
+            generatedJson = generatedJson.replace("```json", "").replace("```", "").trim();
+            logger.info("Cleaned JSON for parsing: {}", generatedJson);
 
-                        if (data != null && data.containsKey("posts")) {
-                            Map<String, Object> postsConnection = (Map<String, Object>) data.get("posts");
-                            if (postsConnection != null && postsConnection.containsKey("edges")) {
-                                List<Map<String, Object>> edges = (List<Map<String, Object>>) postsConnection.get("edges");
-                                if (edges != null) {
-                                    productHuntPosts = edges.stream()
-                                            .map(edge -> (Map<String, Object>) edge.get("node"))
-                                            .map(node -> {
-                                                ProductHuntPostDto post = new ProductHuntPostDto();
-                                                post.setId(String.valueOf(node.get("id")));
-                                                post.setName((String) node.get("name"));
-                                                post.setTagline((String) node.get("tagline"));
-                                                post.setDescription((String) node.get("description"));
-                                                post.setUrl((String) node.get("url"));
-                                                post.setWebsite((String) node.get("website"));
-                                                post.setVotesCount((Integer) node.get("votesCount"));
-                                                post.setCreatedAt((String) node.get("createdAt"));
+            // Parse the JSON into a list of ProductHuntPostDto
+            ObjectMapper objectMapper = new ObjectMapper();
+            List<ProductHuntPostDto> generatedPosts = objectMapper.readValue(generatedJson,
+                objectMapper.getTypeFactory().constructCollectionType(List.class, ProductHuntPostDto.class));
 
-                                                Map<String, Object> thumbnailMap = (Map<String, Object>) node.get("thumbnail");
-                                                if (thumbnailMap != null) {
-                                                    post.setThumbnail(new ProductHuntPostDto.Media((String) thumbnailMap.get("url")));
-                                                }
+            // Populate other fields and assign dummy similarity (since it's generated data)
+            // Or remove similarity if it's not relevant for generated data.
+            // For now, let's assign a high dummy similarity.
+            generatedPosts.forEach(post -> {
+                if (post.getId() == null) post.setId(String.valueOf(System.nanoTime())); // Ensure ID if not generated
+                if (post.getUrl() == null) post.setUrl("https://example.com/generated");
+                if (post.getWebsite() == null) post.setWebsite("https://example.com");
+                if (post.getCreatedAt() == null) post.setCreatedAt(java.time.Instant.now().toString());
+                if (post.getVotesCount() == null) post.setVotesCount(new java.util.Random().nextInt(1000) + 100); // Random votes
 
-                                                Map<String, Object> topicsConnectionMap = (Map<String, Object>) node.get("topics");
-                                                if (topicsConnectionMap != null) {
-                                                    List<Map<String, Object>> topicEdges = (List<Map<String, Object>>) topicsConnectionMap.get("edges");
-                                                    if (topicEdges != null) {
-                                                        List<ProductHuntPostDto.TopicEdge> mappedTopicEdges = topicEdges.stream()
-                                                                .map(topicEdgeMap -> {
-                                                                    Map<String, Object> topicNodeMap = (Map<String, Object>) topicEdgeMap.get("node");
-                                                                    return new ProductHuntPostDto.TopicEdge(new ProductHuntPostDto.TopicNode((String) topicNodeMap.get("name")));
-                                                                })
-                                                                .collect(java.util.stream.Collectors.toList());
-                                                        post.setTopics(new ProductHuntPostDto.TopicsConnection(mappedTopicEdges));
-                                                    }
-                                                }
-                                                return post;
-                                            })
-                                            .collect(java.util.stream.Collectors.toList());
-                                }
-                            }
-                        }
+                // Assign a high dummy similarity as it's directly generated
+                post.setSimilarity(0.95 + (new java.util.Random().nextDouble() * 0.05)); // High similarity
+            });
+            
+            logger.info("Successfully parsed {} generated posts from Gemini.", generatedPosts.size());
+            return Mono.just(generatedPosts);
 
-                        logger.info("Fetched {} posts from Product Hunt API.", productHuntPosts.size());
-
-                        // Semantic filtering using GeminiService
-                        if (query != null && !query.trim().isEmpty() && !productHuntPosts.isEmpty()) {
-                            try {
-                                float[] queryEmbedding = geminiService.getEmbedding(query);
-                                if (queryEmbedding.length > 0) {
-                                    productHuntPosts.forEach(post -> {
-                                        String postText = String.format("%s. %s %s",
-                                                post.getName() != null ? post.getName() : "",
-                                                post.getTagline() != null ? post.getTagline() : "",
-                                                post.getDescription() != null ? post.getDescription() : "");
-                                        float[] postEmbedding = geminiService.getEmbedding(postText);
-                                        if (postEmbedding.length > 0) {
-                                            double similarity = cosineSimilarity(queryEmbedding, postEmbedding);
-                                            post.setSimilarity(similarity); // Add a transient field for similarity in DTO
-                                        }
-                                    });
-
-                                    // Sort by similarity in descending order
-                                    productHuntPosts.sort(Comparator.comparingDouble(ProductHuntPostDto::getSimilarity).reversed());
-                                    logger.info("Finished semantic filtering. Returning {} posts.", productHuntPosts.size());
-                                } else {
-                                    logger.warn("Could not get embedding for query: '{}'. Skipping semantic filtering and returning raw list.", query);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Error during Gemini embedding process: {}. Returning raw list without semantic filtering.", e.getMessage());
-                                // Return raw list if embedding fails due to Gemini API error (e.g., 429)
-                                return productHuntPosts;
-                            }
-                        } else {
-                            logger.info("No query provided or no posts fetched. Returning raw list of {} posts.", productHuntPosts.size());
-                        }
-                        return productHuntPosts;
-                    });
-        });
-    }
-
-    private String buildGraphQLQuery(String query, int first) { // query parameter is now only for logging/context
-        // Product Hunt API 'posts' field does not accept a direct 'search' argument.
-        // We will fetch posts ordered by VOTES and then perform semantic filtering using GeminiService.
-        // The 'query' parameter is used for semantic filtering *after* fetching.
-
-        return String.format("""
-            query {
-              posts(first: %d, order: VOTES) { # order can be RANKING, VOTES, NEWEST. User requested VOTES.
-                edges {
-                  node {
-                    id
-                    name
-                    tagline
-                    description
-                    url
-                    website
-                    votesCount
-                    createdAt
-                    thumbnail {
-                      url
-                    }
-                    topics {
-                      edges {
-                        node {
-                          name
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            """, first);
+        } catch (Exception e) {
+            logger.error("Error generating or parsing content from Gemini: {}", e.getMessage(), e);
+            
+            // Fallback: return a dummy post to prevent complete failure
+            ProductHuntPostDto dummyPost = new ProductHuntPostDto();
+            dummyPost.setId("dummy-" + System.nanoTime());
+            dummyPost.setName("AI 분석 결과 파싱 실패");
+            dummyPost.setTagline("Gemini 응답을 처리하는 중 오류가 발생했습니다. (임시 결과)");
+            dummyPost.setDescription("Gemini가 JSON 형식으로 응답하지 않았거나, 응답 파싱에 실패했습니다.");
+            dummyPost.setVotesCount(0);
+            dummyPost.setSimilarity(0.0);
+            dummyPost.setUrl("#");
+            dummyPost.setWebsite("#");
+            dummyPost.setCreatedAt(java.time.Instant.now().toString());
+            
+            return Mono.just(Collections.singletonList(dummyPost));
+        }
     }
 }
