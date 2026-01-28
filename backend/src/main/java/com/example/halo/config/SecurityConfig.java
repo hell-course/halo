@@ -15,6 +15,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod; // Added for OPTIONS method permitAll
+
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -41,14 +43,21 @@ public class SecurityConfig {
         return new ProviderManager(authenticationProvider);
     }
 
+
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(withDefaults()) // Enable CORS with default settings
+
+// ... rest of imports
+
+            .cors(withDefaults()) // Use CORS config from WebConfig
             .csrf(csrf -> csrf.disable()) // Disable CSRF for API-based authentication
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/api/auth/**").permitAll() // Allow access to auth endpoints
                 .requestMatchers("/api/posts/**").permitAll() // Temporarily permit all for posts, will secure later
+                .requestMatchers("/api/market-research/**").permitAll() // Permit all for market research
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow preflight OPTIONS requests
                 .anyRequest().authenticated() // All other requests require authentication
             )
             .sessionManagement(session -> session

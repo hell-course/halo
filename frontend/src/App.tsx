@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
 import Home from './components/Home';
-import IdeaInputPage from './components/IdeaInput';
-import PrototypeSimulatorPage from './components/PrototypeSimulator';
-import MarketResearchPage from './components/MarketResearch';
+import IdeaInput from './components/IdeaInput';
+import PrototypeSimulator from './components/PrototypeSimulator';
+import MarketResearch from './components/MarketResearch';
 import Login from './components/Login';
 import Register from './components/Register';
 
@@ -66,9 +66,9 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/idea" element={<IdeaInputPage />} />
-          <Route path="/market" element={<MarketResearchPage />} />
-          <Route path="/prototype" element={<PrototypeSimulatorPage />} />
+          <Route path="/idea" element={<IdeaInput />} />
+          <Route path="/market" element={<MarketResearch />} />
+          <Route path="/prototype" element={<PrototypeSimulator />} />
           <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/register" element={<Register />} />
         </Routes>
