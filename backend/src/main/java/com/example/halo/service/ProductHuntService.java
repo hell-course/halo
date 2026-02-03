@@ -17,6 +17,7 @@ import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 @Service
 public class ProductHuntService {
 
@@ -29,6 +30,8 @@ public class ProductHuntService {
     public ProductHuntService(GeminiService geminiService) {
         this.geminiService = geminiService;
     }
+
+
 
     // Helper method to calculate cosine similarity between two embeddings
     private double cosineSimilarity(float[] embedding1, float[] embedding2) {
@@ -71,13 +74,29 @@ public class ProductHuntService {
         );
         logger.info("Sending prompt to Gemini for generation: {}", prompt);
 
+        String generatedJson = ""; // Declare outside try block for catch accessibility
         try {
-            String generatedJson = geminiService.generateContent(prompt);
-            logger.info("Received raw generated JSON from Gemini: {}", generatedJson);
+            generatedJson = geminiService.generateContent(prompt); // Assign value here
 
-            // Clean the generated JSON by removing markdown code block delimiters
-            generatedJson = generatedJson.replace("```json", "").replace("```", "").trim();
-            logger.info("Cleaned JSON for parsing: {}", generatedJson);
+            logger.info("Received raw generated JSON from Gemini: {}", generatedJson);
+            System.out.println("Raw Gemini Response: " + generatedJson); // Debugging log
+
+            if (generatedJson == null || generatedJson.trim().isEmpty()) {
+                logger.error("Gemini returned empty response. Abort parsing.");
+                return Mono.just(Collections.emptyList());
+            }
+            // Robust JSON extraction
+            int startIndex = generatedJson.indexOf("[");
+            int endIndex = generatedJson.lastIndexOf("]");
+
+            if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
+                generatedJson = generatedJson.substring(startIndex, endIndex + 1);
+            } else {
+                // If we can't find a JSON array, try cleaning markdown blocks anyway as a fallback
+                generatedJson = generatedJson.replace("```json", "").replace("```", "").trim();
+                logger.warn("Could not find a valid JSON array structure (start '[' and end ']') in Gemini response. Proceeding with markdown cleanup fallback. Cleaned JSON: {}", generatedJson);
+            }
+            logger.info("Prepared JSON for parsing: {}", generatedJson); // Log the prepared JSON
 
             // Parse the JSON into a list of ProductHuntPostDto
             ObjectMapper objectMapper = new ObjectMapper();
@@ -97,13 +116,13 @@ public class ProductHuntService {
                 // Assign a high dummy similarity as it's directly generated
                 post.setSimilarity(0.95 + (new java.util.Random().nextDouble() * 0.05)); // High similarity
             });
-            
+
             logger.info("Successfully parsed {} generated posts from Gemini.", generatedPosts.size());
             return Mono.just(generatedPosts);
 
         } catch (Exception e) {
-            logger.error("Error generating or parsing content from Gemini: {}", e.getMessage(), e);
-            
+            logger.error("Error generating or parsing content from Gemini: {}. Raw response was: {}", e.getMessage(), generatedJson, e);
+
             // Fallback: return a dummy post to prevent complete failure
             ProductHuntPostDto dummyPost = new ProductHuntPostDto();
             dummyPost.setId("dummy-" + System.nanoTime());
@@ -115,7 +134,7 @@ public class ProductHuntService {
             dummyPost.setUrl("#");
             dummyPost.setWebsite("#");
             dummyPost.setCreatedAt(java.time.Instant.now().toString());
-            
+
             return Mono.just(Collections.singletonList(dummyPost));
         }
     }
