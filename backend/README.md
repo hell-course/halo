@@ -1,33 +1,67 @@
-# 스타트업 프로토타입 빌더
+# Halo Backend
 
-창업자나 창업 동아리들이 스타트업 아이디어를 위한 프로토타입을 구축하고 시장에 비슷한 제품이 있는지 확인할 수 있는 React 프론트엔드 애플리케이션입니다.
+Spring Boot 기반 API 서버입니다.
 
-## 기능
+## 기술 스택
 
-- **아이디어 입력**: 스타트업 아이디어를 입력하고 제출할 수 있습니다.
-- **프로토타입 시뮬레이터**: 간단한 클릭 카운터로 사용자 상호작용을 시뮬레이션합니다.
-- **시장 조사**: 시장에서 비슷한 제품을 검색하고 결과를 볼 수 있습니다.
+- Java 21
+- Spring Boot 3.2
+- Spring Security + JWT
+- Spring Data JPA
+- PostgreSQL + pgvector
 
-## 시작하기
+## 주요 기능
 
-1. 의존성 설치:
-   ```
-   npm install
-   ```
+- 인증: 회원가입/로그인/JWT 검증
+- 아이디어 게시글 저장/조회/검색
+- 시장조사 파이프라인
+  - Product Hunt 수집(sync/backfill)
+  - 임베딩 배치 처리
+  - 벡터 검색/평가 API
 
-2. 개발 서버 실행:
-   ```
-   npm run dev
-   ```
+## 실행 방법
 
-3. 브라우저에서 [http://localhost:5173](http://localhost:5173)을 엽니다.
+### 1) DB 실행
 
-## 프로덕션 빌드
-
+```bash
+docker compose up -d db
 ```
-npm run build
+
+### 2) 서버 실행
+
+```bash
+./gradlew bootRun --no-daemon
 ```
 
-## 기능 추가
+기본 주소: `http://localhost:8080`
 
-`src/components/` 폴더에 더 많은 컴포넌트를 추가하고 `App.tsx` 파일을 업데이트하여 애플리케이션을 확장할 수 있습니다.
+## 설정 파일
+
+- 기본 설정: `src/main/resources/application.yml`
+- 시크릿 설정: `src/main/resources/application-secret.yml`
+
+`application-secret.yml` 예시:
+
+```yml
+gemini:
+  api:
+    key: "YOUR_GEMINI_API_KEY"
+producthunt:
+  api:
+    token: "YOUR_PRODUCTHUNT_TOKEN"
+```
+
+## 스케줄링 (기본값)
+
+- 증분 수집: 30분마다
+- 임베딩 배치: 5분마다
+- 백필: 매일 오후 3시
+
+## 주요 API
+
+- `POST /api/market-research/sync?limit=50&maxPages=10`
+- `POST /api/market-research/backfill?limit=50&maxPages=20`
+- `GET /api/market-research/sync-status`
+- `POST /api/market-research/embed?batchSize=200`
+- `GET /api/market-research/search?query=ai&limit=10`
+- `GET /api/market-research/evaluate?query=ai&limit=10`

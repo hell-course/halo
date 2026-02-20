@@ -16,8 +16,9 @@ public class EmbeddingService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    // Gemini 최신 임베딩 모델
-    private static final String MODEL = "text-embedding-004";
+    // Stable Gemini embeddings model (Gemini API)
+    private static final String MODEL = "gemini-embedding-001";
+    private static final int OUTPUT_DIMENSIONALITY = 384;
 
     private static final String ENDPOINT =
             "https://generativelanguage.googleapis.com/v1beta/models/%s:embedContent?key=%s";
@@ -37,9 +38,10 @@ public class EmbeddingService {
                 "parts": [{
                   "text": %s
                 }]
-              }
+              },
+              "outputDimensionality": %d
             }
-            """.formatted(objectMapper.writeValueAsString(text));
+            """.formatted(objectMapper.writeValueAsString(text), OUTPUT_DIMENSIONALITY);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(ENDPOINT.formatted(MODEL, apiKey)))
