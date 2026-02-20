@@ -10,3 +10,4 @@ services:
       POSTGRES_DB: halo_db    # DB 이름 변경
     volumes:
       - ./halo_postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql

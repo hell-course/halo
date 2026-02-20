@@ -17,7 +17,7 @@ const Home: React.FC = () => {
     // 백엔드 API로부터 게시글 데이터를 가져옵니다.
     const fetchPosts = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/posts');
+        const response = await fetch('/api/posts');
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }

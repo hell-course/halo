@@ -9,3 +9,22 @@ spring:
     hibernate:
       ddl-auto: update # 엔티티 구조에 맞춰 테이블을 자동으로 생성/수정해줍니다.
     show-sql: true     # 실행되는 SQL을 콘솔에 보여줍니다.
+spring.profiles.include: secret
+
+producthunt:
+  api:
+    url: https://api.producthunt.com/v2/api/graphql
+    token: ${PRODUCTHUNT_API_TOKEN:}
+  ingestion:
+    cron: "0 */30 * * * *"
+    limit: 30
+    max-pages: 5
+    page-delay-ms: 200
+    absolute-max-pages: 1000
+  backfill:
+    cron: "0 0 15 * * *"
+    limit: 50
+    max-pages: 20
+  embedding:
+    cron: "0 */5 * * * *"
+    batch-size: 30
