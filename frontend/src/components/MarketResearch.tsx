@@ -2,9 +2,21 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ProductHuntPost } from '../types/producthunt'; // Import the interface
 
+interface SearchQualityReport {
+  query: string;
+  limit: number;
+  vectorCount: number;
+  keywordCount: number;
+  overlapCount: number;
+  precisionAtK: number;
+  vectorTopIds: string[];
+  keywordTopIds: string[];
+}
+
 const MarketResearch: React.FC = () => {
   const [query, setQuery] = useState('AI 기반 채식 식당 예약 플랫폼'); // Updated initial query
   const [productHuntPosts, setProductHuntPosts] = useState<ProductHuntPost[]>([]); // State for fetched posts
+  const [qualityReport, setQualityReport] = useState<SearchQualityReport | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,14 +29,27 @@ const MarketResearch: React.FC = () => {
     setIsSearching(true);
     setError(null);
     setProductHuntPosts([]); // Clear previous results
+    setQualityReport(null);
 
     try {
-      const response = await fetch(`/api/market-research/search?query=${encodeURIComponent(query)}&limit=10`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const searchUrl = `/api/market-research/search?query=${encodeURIComponent(query)}&limit=10`;
+      const evaluateUrl = `/api/market-research/evaluate?query=${encodeURIComponent(query)}&limit=10`;
+      const [searchResponse, evaluateResponse] = await Promise.all([
+        fetch(searchUrl),
+        fetch(evaluateUrl),
+      ]);
+
+      if (!searchResponse.ok) {
+        throw new Error(`Search failed: ${searchResponse.status}`);
       }
-      const data: ProductHuntPost[] = await response.json();
+
+      const data: ProductHuntPost[] = await searchResponse.json();
       setProductHuntPosts(data);
+
+      if (evaluateResponse.ok) {
+        const report: SearchQualityReport = await evaluateResponse.json();
+        setQualityReport(report);
+      }
     } catch (e: any) {
       setError(`Failed to fetch market research: ${e.message}`);
       console.error("Market research fetch error:", e);
@@ -134,8 +159,8 @@ const MarketResearch: React.FC = () => {
                     {topicEdge.node.name}
                   </span>
                 ))}
-                {post.websiteUrl && (
-                  <a href={post.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-auto">
+                {(post.website || post.websiteUrl) && (
+                  <a href={post.website || post.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-auto">
                     웹사이트 &rarr;
                   </a>
                 )}
@@ -143,6 +168,18 @@ const MarketResearch: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {qualityReport && (
+          <div className="halo-card" style={{ marginBottom: '2rem' }}>
+            <h4 style={{ marginBottom: '0.75rem' }}>검색 품질 지표</h4>
+            <p style={{ color: '#64748b', margin: 0 }}>
+              Vector 후보 {qualityReport.vectorCount}개 / Keyword 후보 {qualityReport.keywordCount}개 / Overlap {qualityReport.overlapCount}개
+            </p>
+            <p style={{ color: '#64748b', marginTop: '0.5rem' }}>
+              Precision@{qualityReport.limit}: {(qualityReport.precisionAtK * 100).toFixed(1)}%
+            </p>
+          </div>
+        )}
 
         {/* CTA */}
         <div style={{ textAlign: 'center', padding: '3rem', background: '#e0e7ff', borderRadius: '12px' }}>

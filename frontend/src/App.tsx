@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import './App.css';
 import Home from './components/Home';
 import IdeaInput from './components/IdeaInput';
@@ -23,6 +23,7 @@ const NavLink = ({ to, children }: { to: string, children: React.ReactNode }) =>
 
 function App() {
   const [token, setToken] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,6 +31,7 @@ function App() {
     if (storedToken) {
       setToken(storedToken);
     }
+    setAuthChecked(true);
   }, []);
 
   const handleLoginSuccess = (newToken: string) => {
@@ -64,18 +66,29 @@ function App() {
         </nav>
       </header>
       <main>
+        {!authChecked ? (
+          <div className="page-container">인증 상태 확인 중...</div>
+        ) : (
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/idea" element={<IdeaInput />} />
-          <Route path="/market" element={<MarketResearch />} />
-          <Route path="/prototype" element={<PrototypeSimulator />} />
+          <Route path="/idea" element={<PrivateRoute token={token}><IdeaInput /></PrivateRoute>} />
+          <Route path="/market" element={<PrivateRoute token={token}><MarketResearch /></PrivateRoute>} />
+          <Route path="/prototype" element={<PrivateRoute token={token}><PrototypeSimulator /></PrivateRoute>} />
           <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
           <Route path="/register" element={<Register />} />
         </Routes>
+        )}
       </main>
     </div>
   );
 }
+
+const PrivateRoute = ({ token, children }: { token: string | null, children: React.ReactNode }) => {
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
 
 // Wrap App with Router to use useNavigate
 const AppWrapper = () => (
